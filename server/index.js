@@ -1,34 +1,38 @@
+// server/index.js
 const express = require('express');
-const cors = require('cors');
 const app = express();
 const port = 3001;
-
+const cors = require('cors');
 app.use(cors());
-app.use(express.json());
 
-const rooms = {}; // Example: { roomId1: [player1, player2], roomId2: [] }
+let rooms = []; // Массив для хранения комнат
+
+app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
+// Эндпоинт для создания комнаты
 app.post('/create-room', (req, res) => {
-  const roomId = Math.random().toString(36).substr(2, 6);
-  rooms[roomId] = [];
-  res.json({ roomId, message: 'Room created successfully' });
+  const roomId = Math.random().toString(36).substr(2, 9); // Генерация случайного ID комнаты
+  rooms.push(roomId);
+  res.json({ roomId });
 });
 
+// Эндпоинт для присоединения к комнате
 app.post('/join-room', (req, res) => {
-  const { roomId } = req.body;
+  const { roomId } = req.body; // Получаем roomId из тела запроса
 
-  if (!roomId || !rooms[roomId]) {
-    return res.status(404).json({ message: 'Room not found' });
+  if (rooms.includes(roomId)) {
+    // Если комната существует, присоединяем
+    res.json({ message: 'You have joined the room!' });
+  } else {
+    // Если комната не существует, отправляем ошибку
+    res.status(404).json({ message: 'Room not found' });
   }
-
-  rooms[roomId].push(`player${rooms[roomId].length + 1}`);
-  res.json({ message: `Joined room ${roomId}` });
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
