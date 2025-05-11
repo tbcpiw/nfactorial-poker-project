@@ -18,16 +18,16 @@ export default function Home() {
 
   return (
     <div>
-      <h1>Добро пожаловать в покер!</h1>
-      <button onClick={createRoom}>Создать комнату</button>
+      <h1>Welcome to Poker!</h1>
+      <button onClick={createRoom}>Create room</button>
       <div>
         <input
           type="text"
-          placeholder="Введите ID комнаты"
+          placeholder="Enter ID of the room"
           value={roomId}
           onChange={(e) => setRoomId(e.target.value)}
         />
-        <button onClick={joinRoom}>Войти в комнату</button>
+        <button onClick={joinRoom}>Enter the room</button>
       </div>
     </div>
   );

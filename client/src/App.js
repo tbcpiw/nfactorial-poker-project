@@ -1,76 +1,54 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 function App() {
-  const [message, setMessage] = useState('Проверка соединения...');
-  const [roomStatus, setRoomStatus] = useState('');
+  const [message, setMessage] = useState('');
   const [roomId, setRoomId] = useState('');
+  const [inputRoomId, setInputRoomId] = useState('');
 
-  useEffect(() => {
-    fetch('http://localhost:3001')
-      .then(res => res.text())
-      .then(data => setMessage(data))
-      .catch(err => {
-        setMessage('Ошибка подключения к серверу');
-        console.error('Ошибка:', err);
-      });
-  }, []);
-
-  // Создание комнаты
   const createRoom = async () => {
     try {
-      const response = await fetch('http://localhost:3001/create-room', {
+      const res = await fetch('http://localhost:3001/create-room', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
       });
-      const data = await response.json();
+      const data = await res.json();
       setRoomId(data.roomId);
-      setRoomStatus(data.message + ' ID комнаты: ' + data.roomId);
+      setMessage(data.message);
     } catch (err) {
-      setRoomStatus('Ошибка при создании комнаты');
-      console.error(err);
+      setMessage('Error creating room');
     }
   };
 
-  // Присоединение к комнате
   const joinRoom = async () => {
-    if (!roomId) {
-      setRoomStatus('Введите ID комнаты для присоединения!');
-      return;
-    }
-
     try {
-      const response = await fetch('http://localhost:3001/join-room', {
+      const res = await fetch('http://localhost:3001/join-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roomId }),
+        body: JSON.stringify({ roomId: inputRoomId }),
       });
-      const data = await response.json();
-      setRoomStatus(data.message);
+
+      const data = await res.json();
+      setMessage(data.message);
     } catch (err) {
-      setRoomStatus('Ошибка при присоединении к комнате');
-      console.error(err);
+      setMessage('Error joining room');
     }
   };
 
   return (
     <div>
-      <h1>Добро пожаловать в покер!</h1>
+      <h1>Welcome to Poker!</h1>
+
+      <button onClick={createRoom}>Create Room</button>
+      {roomId && <p>Room ID: {roomId}</p>}
+
+      <input
+        type="text"
+        placeholder="Enter room ID"
+        value={inputRoomId}
+        onChange={(e) => setInputRoomId(e.target.value)}
+      />
+      <button onClick={joinRoom}>Join Room</button>
+
       <p>{message}</p>
-
-      <div>
-        <button onClick={createRoom}>Создать комнату</button>
-        <button onClick={joinRoom}>Присоединиться к комнате</button>
-      </div>
-
-      <div>
-        <input
-          placeholder="Введите ID комнаты"
-          value={roomId}
-          onChange={(e) => setRoomId(e.target.value)}
-        />
-      </div>
-
-      <p>{roomStatus}</p>
     </div>
   );
 }

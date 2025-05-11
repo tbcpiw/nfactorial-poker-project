@@ -11,7 +11,7 @@ export default function Room() {
     socket.emit('join_room', roomId);
 
     socket.on('player_joined', (playerId) => {
-      console.log(`Игрок присоединился: ${playerId}`);
+      console.log(`Player joined: ${playerId}`);
     });
 
     return () => {
@@ -21,7 +21,7 @@ export default function Room() {
 
   return (
     <div>
-      <h1>Вы в комнате: {roomId}</h1>
+      <h1>You are in room: {roomId}</h1>
     </div>
   );
 }
