@@ -1,9 +1,22 @@
 // client/src/pages/JoinPage.js
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 function JoinPage() {
   const [roomId, setRoomId] = useState('');
+  const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [rooms, setRooms] = useState([]); // Для хранения списка публичных комнат
+
+  // Получаем список публичных комнат с сервера
+  useEffect(() => {
+    const fetchRooms = async () => {
+      const response = await fetch('http://localhost:3001/rooms');
+      const data = await response.json();
+      setRooms(data); // Сохраняем публичные комнаты
+    };
+
+    fetchRooms();
+  }, []);
 
   const handleJoinRoom = async () => {
     try {
@@ -12,11 +25,10 @@ function JoinPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ roomId }), // Отправляем roomId на сервер
+        body: JSON.stringify({ roomId, password }), // Отправляем roomId и пароль
       });
 
       if (!response.ok) {
-        // Если сервер вернул ошибку (например, 404), выводим её
         const errorData = await response.json();
         setStatusMessage(errorData.message);
       } else {
@@ -32,11 +44,29 @@ function JoinPage() {
   return (
     <div>
       <h2>Join a Room</h2>
+      
+      {/* Список публичных комнат */}
+      <h3>Public Rooms:</h3>
+      <ul>
+        {rooms.map((room) => (
+          <li key={room.roomId}>
+            {room.roomId} (Public)
+          </li>
+        ))}
+      </ul>
+
+      {/* Форма для ввода Room ID и пароля (для приватных комнат) */}
       <input
         type="text"
         placeholder="Enter Room ID"
         value={roomId}
         onChange={(e) => setRoomId(e.target.value)}
+      />
+      <input
+        type="password"
+        placeholder="Enter Password (if private)"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
       />
       <button onClick={handleJoinRoom}>Join Room</button>
       <p>{statusMessage}</p>

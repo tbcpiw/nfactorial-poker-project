@@ -1,36 +1,45 @@
 // server/index.js
-const express = require('express');
+import express from 'express';
+import cors from 'cors';
+
 const app = express();
 const port = 3001;
-const cors = require('cors');
+
 app.use(cors());
-
-let rooms = []; // Массив для хранения комнат
-
 app.use(express.json());
-
 app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
-// Эндпоинт для создания комнаты
+let rooms = [];
+
 app.post('/create-room', (req, res) => {
-  const roomId = Math.random().toString(36).substr(2, 9); // Генерация случайного ID комнаты
-  rooms.push(roomId);
+  const { isPrivate, password } = req.body;
+  const roomId = Math.random().toString(36).substr(2, 9);
+  const room = {
+    roomId,
+    isPrivate,
+    password: isPrivate ? password : null,
+    players: [],
+  };
+  rooms.push(room);
   res.json({ roomId });
 });
 
-// Эндпоинт для присоединения к комнате
-app.post('/join-room', (req, res) => {
-  const { roomId } = req.body; // Получаем roomId из тела запроса
+app.get('/rooms', (req, res) => {
+  const publicRooms = rooms.filter(room => !room.isPrivate);
+  res.json(publicRooms);
+});
 
-  if (rooms.includes(roomId)) {
-    // Если комната существует, присоединяем
-    res.json({ message: 'You have joined the room!' });
-  } else {
-    // Если комната не существует, отправляем ошибку
-    res.status(404).json({ message: 'Room not found' });
-  }
+app.post('/join-room', (req, res) => {
+  const { roomId, password } = req.body;
+  const room = rooms.find(room => room.roomId === roomId);
+  if (!room) return res.status(404).json({ message: 'Room not found' });
+  if (room.isPrivate && room.password !== password)
+    return res.status(403).json({ message: 'Incorrect password for private room' });
+
+  room.players.push('Player');
+  res.json({ message: 'You have joined the room!' });
 });
 
 app.listen(port, () => {
