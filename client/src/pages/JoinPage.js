@@ -1,11 +1,13 @@
 // client/src/pages/JoinPage.js
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function JoinPage() {
   const [roomId, setRoomId] = useState('');
   const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [rooms, setRooms] = useState([]); // Для хранения списка публичных комнат
+  const navigate = useNavigate();
 
   // Получаем список публичных комнат с сервера
   useEffect(() => {
@@ -34,6 +36,9 @@ function JoinPage() {
       } else {
         const data = await response.json();
         setStatusMessage(data.message);
+
+        // Переходим на страницу комнаты
+        navigate(`/room/${roomId}`);
       }
     } catch (error) {
       setStatusMessage('Failed to connect to the server');

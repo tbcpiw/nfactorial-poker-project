@@ -8,10 +8,10 @@
 # testing
 /coverage
 
-# production
+# prod
 /build
 
-# misc
+# mis
 .DS_Store
 .env.local
 .env.development.local
