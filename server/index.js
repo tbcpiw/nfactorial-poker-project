@@ -1,158 +1,130 @@
-// server/index.js
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import { Server } from 'socket.io';
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
-const port = 3001;
+const port   = 3001;
 
-// CORS и JSON парсер
 app.use(cors());
 app.use(express.json());
 
-let rooms = []; // сюда складываем комнаты
+let rooms = [];
 
-// Тестовый маршрут
-app.get('/', (req, res) => {
-  res.send('Server is running!');
-});
+app.get('/', (req, res) => res.send('Server running!'));
 
-// Создание комнаты
 app.post('/create-room', (req, res) => {
   const { isPrivate, password } = req.body;
   const roomId = Math.random().toString(36).substr(2, 9);
-  const room = {
-    roomId,
-    isPrivate,
-    password: isPrivate ? password : null,
-    players: [],
-    gameStarted: false,
-    cards: [], // сюда позже заложим раздачу карт
-  };
-  rooms.push(room);
+  rooms.push({ roomId, isPrivate, password: isPrivate?password:null, players:[], gameStarted:false, cards:[] });
   res.json({ roomId });
 });
 
-// Получить все публичные комнаты
 app.get('/rooms', (req, res) => {
-  const publicRooms = rooms.filter(r => !r.isPrivate);
-  res.json(publicRooms);
+  res.json(rooms.filter(r => !r.isPrivate));
 });
 
-// Получить данные конкретной комнаты (список игроков, статус)
 app.get('/room/:roomId', (req, res) => {
-  const { roomId } = req.params;
-  const room = rooms.find(r => r.roomId === roomId);
-  if (!room) {
-    return res.status(404).json({ message: 'Room not found' });
-  }
+  const room = rooms.find(r => r.roomId === req.params.roomId);
+  if (!room) return res.status(404).json({ message:'Room not found' });
   res.json(room);
 });
 
-// Присоединиться к комнате (REST)
 app.post('/join-room', (req, res) => {
   const { roomId, password } = req.body;
   const room = rooms.find(r => r.roomId === roomId);
-  if (!room) {
-    return res.status(404).json({ message: 'Room not found' });
-  }
-  if (room.isPrivate && room.password !== password) {
-    return res.status(403).json({ message: 'Incorrect password for private room' });
-  }
-  res.json({ message: 'You have joined the room!' });
+  if(!room) return res.status(404).json({ message:'Room not found' });
+  if(room.isPrivate && room.password !== password) return res.status(403).json({ message:'Wrong password' });
+  res.json({ message:'Joined!' });
 });
 
-// Старт игры (REST)
-app.post('/start-game', (req, res) => {
-  const { roomId } = req.body;
-  const room = rooms.find(r => r.roomId === roomId);
-  if (!room) {
-    return res.status(404).json({ message: 'Room not found' });
-  }
-  if (room.players.length < 2) {
-    return res.status(400).json({ message: 'Not enough players to start the game' });
-  }
-
-  room.gameStarted = true;
-  // Простейшая раздача — по две "карты" каждому
-  room.cards = room.players.map((p, i) => ({
-    playerId: p.id,
-    cards: [`Card${2*i+1}`, `Card${2*i+2}`],
-  }));
-
-  // Уведомляем всех игроков комнаты через WebSocket
-  io.to(roomId).emit('game_started', { cards: room.cards });
-
-  res.json({ message: 'Game started successfully!' });
-});
-
-// Socket.IO настройка
-const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET','POST'] },
-});
+const io = new Server(server, { cors:{ origin:'*' } });
 
 io.on('connection', socket => {
-  console.log('User connected:', socket.id);
+  console.log('Conn:', socket.id);
 
-  socket.on('start_game', ({ roomId }) => {
-  console.log('[SERVER] start_game received for room', roomId);
-  const room = rooms.find(r => r.roomId === roomId);
-  if (!room) return;
-
-  // генерируем карты (пример)
-  const cardsData = room.players.map(p => ({
-    playerId: p.id,
-    cards: ['🂡', '🂢', '🂣'] // просто пример
-  }));
-
-  io.to(roomId).emit('game_started', { cards: cardsData });
-  socket.on('game_started', ({ cards }) => {
-  console.log('[CLIENT] game_started event, cards=', cards);
-  setCards(cards);
-  setStatusMessage('Game has started!');
-});
-
-});
-
-
-
-  socket.on('request_room_players', ({ roomId }) => {
-    const room = rooms.find(r => r.roomId === roomId);
-    if (room) {
-      io.to(roomId).emit('room_players', room.players);
-    }
-  });
-
-
-  // Когда клиент просит присоединиться через сокеты
   socket.on('join_room', ({ roomId, playerName }) => {
-    const room = rooms.find(r => r.roomId === roomId);
-    if (!room) return;
-
+    const room = rooms.find(r=>r.roomId===roomId);
+    if(!room) return;
     socket.join(roomId);
-
     const player = { id: socket.id, name: playerName };
     room.players.push(player);
-
-    // Всем в комнате отсылаем обновлённый список игроков
     io.to(roomId).emit('room_players', room.players);
   });
 
-  socket.on('disconnect', () => {
-    // Убираем игрока из всех комнат и обновляем списки
-    for (const room of rooms) {
-      const idx = room.players.findIndex(p => p.id === socket.id);
-      if (idx !== -1) {
-        room.players.splice(idx, 1);
-        io.to(room.roomId).emit('room_players', room.players);
-      }
+  socket.on('request_room_players', ({ roomId }) => {
+    const room = rooms.find(r=>r.roomId===roomId);
+    if(room) io.to(roomId).emit('room_players', room.players);
+  });
+
+  socket.on('start_game', ({ roomId }) => {
+    const room = rooms.find(r=>r.roomId===roomId);
+    if(!room || room.players.length<2) {
+      socket.emit('error_message', { message:'Need 2+ players' });
+      return;
     }
-    console.log('User disconnected:', socket.id);
+    room.gameStarted = true;
+    io.to(roomId).emit('game_started', { cards: room.cards });
+  });
+
+  socket.on('init_preflop', ({ roomId }) => {
+    const room = rooms.find(r=>r.roomId===roomId);
+    if(!room) return;
+    const sb=5, bb=10;
+    room.pot = sb+bb;
+    room.currentBet = bb;
+    room.players = room.players.map((p,i)=>({
+      ...p,
+      stack:1000-(i===1?sb:i===2?bb:0),
+      contributed:i===1?sb:i===2?bb:0,
+      folded:false
+    }));
+    room.currentPlayerIndex = 3 % room.players.length;
+    io.to(roomId).emit('preflop_started', {
+      players:room.players, pot:room.pot,
+      currentBet:room.currentBet,
+      currentPlayerId:room.players[room.currentPlayerIndex].id
+    });
+  });
+
+  socket.on('player_action', ({ roomId, playerId, action, raiseAmount }) => {
+    const room = rooms.find(r=>r.roomId===roomId);
+    if(!room) return;
+    const idx = room.players.findIndex(p=>p.id===playerId);
+    if(idx<0 || room.players[idx].folded) return;
+    const p = room.players[idx];
+    switch(action) {
+      case 'fold': p.folded=true; break;
+      case 'check': if(p.contributed!==room.currentBet) return; break;
+      case 'call': {
+        const diff = room.currentBet - p.contributed;
+        p.stack -= diff; p.contributed += diff; room.pot += diff;
+      } break;
+      case 'raise': {
+        const total = raiseAmount + (room.currentBet - p.contributed);
+        p.stack -= total; p.contributed += total; room.pot += total;
+        room.currentBet += raiseAmount;
+      } break;
+      default: return;
+    }
+    // next player
+    let next = (idx+1)%room.players.length;
+    while(room.players[next].folded) next=(next+1)%room.players.length;
+    room.currentPlayerIndex = next;
+    io.to(roomId).emit('betting_update',{
+      players:room.players, pot:room.pot,
+      currentBet:room.currentBet,
+      currentPlayerId:room.players[next].id
+    });
+  });
+
+  socket.on('disconnect', () => {
+    rooms.forEach(room=>{
+      room.players = room.players.filter(p=>p.id!==socket.id);
+      io.to(room.roomId).emit('room_players', room.players);
+    });
   });
 });
 
-server.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+server.listen(port, ()=>console.log(`Listening ${port}`));

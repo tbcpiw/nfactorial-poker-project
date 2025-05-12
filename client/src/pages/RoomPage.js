@@ -1,125 +1,6 @@
-// client/src/pages/RoomPage.js
 import { useParams } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-
-function RoomPage() {
-  const { roomId } = useParams();
-  const [players, setPlayers]     = useState([]);
-  const [cards, setCards]         = useState([]);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [playerName, setPlayerName]       = useState('');
-  const [showModal, setShowModal]         = useState(true);
-  const [tempName, setTempName]           = useState('');
-  const [myId, setMyId]                   = useState(null);
-
-  // Создаём единственный сокет-экземпляр
-  const socketRef = useRef();
-  useEffect(() => {
-    socketRef.current = io('http://localhost:3001');
-    const socket = socketRef.current;
-
-    // Сохраняем свой socket.id
-    socket.on('connect', () => {
-      setMyId(socket.id);
-    });
-
-    // Слушаем обновления игроков
-    socket.on('room_players', updatedPlayers => {
-      setPlayers(updatedPlayers);
-    });
-
-    // Слушаем начало игры
-    socket.on('game_started', ({ cards }) => {
-      setCards(cards);
-      setStatusMessage('Game has started!');
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  // После того как ввод имени подтверждён, один раз эмитим join и запрос списка
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!playerName || !myId) return;
-
-    socket.emit('join_room', { roomId, playerName });
-    socket.emit('request_room_players', { roomId });
-  }, [playerName, myId, roomId]);
-
-  // Одноразовая отправка старта игры
-  const handleStartGame = () => {
-    socketRef.current.emit('start_game', { roomId });
-  };
-
-  // Сабмит модалки
-  const handleNameSubmit = e => {
-    e.preventDefault();
-    const name = tempName.trim();
-    if (name) {
-      setPlayerName(name);
-      setShowModal(false);
-    }
-  };
-
-  // Находим свои карты по myId
-  const myCards = cards.find(c => c.playerId === myId)?.cards || [];
-
-  return (
-    <div>
-      {showModal && (
-        <div style={modalStyles.overlay}>
-          <div style={modalStyles.modal}>
-            <h3>Enter your name</h3>
-            <form onSubmit={handleNameSubmit}>
-              <input
-                type="text"
-                value={tempName}
-                onChange={e => setTempName(e.target.value)}
-                autoFocus
-                required
-              />
-              <button type="submit">Join</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {!showModal && (
-        <>
-          <h2>Room: {roomId}</h2>
-
-          <h3>Players:</h3>
-          <ul>
-            {players.map(p => (
-              <li key={p.id}>{p.name}</li>
-            ))}
-          </ul>
-
-          {!statusMessage && players[0]?.id === myId && (
-            // Кнопка для хоста
-            <button onClick={handleStartGame}>Start Game</button>
-          )}
-
-          {statusMessage && <p>{statusMessage}</p>}
-
-          {myCards.length > 0 && (
-            <div>
-              <h3>Your Cards:</h3>
-              <ul>
-                {myCards.map((card, i) => (
-                  <li key={i}>{card}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
 
 const modalStyles = {
   overlay: {
@@ -137,5 +18,228 @@ const modalStyles = {
     textAlign: 'center',
   },
 };
+
+function RoomPage() {
+  const { roomId } = useParams();
+
+  // общие стейты
+  const [players, setPlayers]             = useState([]);
+  const [cards, setCards]                 = useState([]);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [playerName, setPlayerName]       = useState('');
+  const [showModal, setShowModal]         = useState(false);
+  const [tempName, setTempName]           = useState('');
+  const [myId, setMyId]                   = useState(null);
+  const [board, setBoard]                 = useState([]);
+
+
+  // ставки
+  const [pot, setPot]                         = useState(0);
+  const [currentBet, setCurrentBet]           = useState(0);
+  const [currentPlayerId, setCurrentPlayerId] = useState(null);
+  const [raiseAmount, setRaiseAmount]         = useState(0);
+
+  // один сокет на компонент
+  const socketRef = useRef();
+
+  useEffect(() => {
+    const socket = io('http://localhost:3001');
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setMyId(socket.id);
+    });
+
+    socket.on('room_players', updated => {
+      setPlayers(updated);
+    });
+
+    socket.on('preflop_started', ({ players, pot, currentBet, currentPlayerId }) => {
+      setPlayers(players);
+      setPot(pot);
+      setCurrentBet(currentBet);
+      setCurrentPlayerId(currentPlayerId);
+      setStatusMessage('Pre-flop started');
+    });
+
+    socket.on('betting_update', ({ players, pot, currentBet, currentPlayerId }) => {
+      setPlayers(players);
+      setPot(pot);
+      setCurrentBet(currentBet);
+      setCurrentPlayerId(currentPlayerId);
+    });
+
+    socket.on('game_started', ({ cards }) => {
+      setCards(cards);
+      setStatusMessage('Game has started!');
+    });
+
+    socket.on('error_message', ({ message }) => {
+      setStatusMessage(message);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // после ввода имени — join + запрос списка
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!playerName || !myId) return;
+    socket.emit('join_room', { roomId, playerName });
+    socket.emit('request_room_players', { roomId });
+  }, [playerName, myId, roomId]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+
+    socket.on('flop', ({ board, players, pot, currentBet, currentPlayerId }) => {
+      setBoard(board);
+      setPlayers(players);
+      setPot(pot);
+      setCurrentBet(currentBet);
+      setCurrentPlayerId(currentPlayerId);
+      setStatusMessage('Flop dealt');
+    });
+    socket.on('turn', ({ board, players, pot, currentBet, currentPlayerId }) => {
+      setBoard(board);
+      setPlayers(players);
+      setPot(pot);
+      setCurrentBet(currentBet);
+      setCurrentPlayerId(currentPlayerId);
+      setStatusMessage('Turn dealt');
+    });
+    socket.on('river', ({ board, players, pot, currentBet, currentPlayerId }) => {
+      setBoard(board);
+      setPlayers(players);
+      setPot(pot);
+      setCurrentBet(currentBet);
+      setCurrentPlayerId(currentPlayerId);
+      setStatusMessage('River dealt');
+    });
+    socket.on('showdown', ({ board, winners }) => {
+      setBoard(board);
+      if (winners.length === 1) {
+        setStatusMessage(`Winner: ${winners[0].name}`);
+      } else {
+        setStatusMessage(`Winners: ${winners.map(w=>w.name).join(', ')}`);
+      }
+    });
+
+
+    return () => {
+      socket.off('flop');
+      socket.off('turn');
+      socket.off('river');
+      socket.off('showdown');
+    };
+  }, []);
+
+
+  // сабмит модалки
+  const handleNameSubmit = e => {
+    e.preventDefault();
+    const name = tempName.trim();
+    if (name) {
+      setPlayerName(name);
+      setShowModal(false);
+    }
+  };
+
+  // определяем хоста
+  const isHost = players[0]?.id === myId;
+
+  // старт игры + инициализация pre-flop
+  const handleStartGame = () => {
+    const socket = socketRef.current;
+    socket.emit('start_game', { roomId });
+    socket.emit('init_preflop', { roomId });
+  };
+
+  // мои карты
+  const myCards = cards.find(c => c.playerId === myId)?.cards || [];
+
+  return (
+    <div>
+      {showModal
+        ? (
+          <div style={modalStyles.overlay}>
+            <div style={modalStyles.modal}>
+              <h3>Enter your name</h3>
+              <form onSubmit={handleNameSubmit}>
+                <input
+                  type="text"
+                  value={tempName}
+                  onChange={e => setTempName(e.target.value)}
+                  autoFocus
+                  required
+                />
+                <button type="submit">Join</button>
+              </form>
+            </div>
+          </div>
+        )
+        : (
+          <>
+            <h2>Room: {roomId}</h2>
+            <h3>Players:</h3>
+            <ul>{players.map(p => <li key={p.id}>{p.name}</li>)}</ul>
+
+            <div>
+              <p>Pot: {pot}</p>
+              <p>Current Bet: {currentBet}</p>
+            </div>
+
+            {!statusMessage && isHost && (
+              <button onClick={handleStartGame}>Start Game</button>
+            )}
+
+            {statusMessage && <p>{statusMessage}</p>}
+
+            {myCards.length > 0 && (
+              <div>
+                <h3>Your Cards:</h3>
+                <ul>{myCards.map((c,i) => <li key={i}>{c}</li>)}</ul>
+              </div>
+            )}
+
+            {/* Ставки */}
+            {board.length > 0 && (
+              <div>
+                <h3>Board:</h3>
+                <ul style={{ display: 'flex', gap: '0.5rem' }}>
+                  {board.map((card, i) => <li key={i}>{card}</li>)}
+                </ul>
+              </div>
+            )}
+
+            {/* Кнопки фаз */}
+            {isHost && statusMessage === 'Pre-flop started' && (
+              <button onClick={() => socketRef.current.emit('deal_flop', { roomId })}>
+                Deal Flop
+              </button>
+            )}
+            {isHost && statusMessage === 'Flop dealt' && (
+              <button onClick={() => socketRef.current.emit('deal_turn', { roomId })}>
+                Deal Turn
+              </button>
+            )}
+            {isHost && statusMessage === 'Turn dealt' && (
+              <button onClick={() => socketRef.current.emit('deal_river', { roomId })}>
+                Deal River
+              </button>
+            )}
+            {isHost && statusMessage === 'River dealt' && (
+              <button onClick={() => socketRef.current.emit('showdown', { roomId })}>
+                Showdown
+              </button>
+            )}
+          </>
+        )
+      }
+    </div>
+  );
+}
 
 export default RoomPage;

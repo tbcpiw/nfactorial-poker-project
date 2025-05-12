@@ -36,3 +36,34 @@
     transform: rotate(360deg);
   }
 }
+
+.rules-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: sans-serif;
+  line-height: 1.6;
+}
+
+.rules-container h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.rules-container h2 {
+  margin-top: 1.5rem;
+  font-size: 1.3rem;
+  color: #444;
+}
+
+.rules-container p,
+.rules-container li {
+  font-size: 1rem;
+}
+
+.rules-container button {
+  margin-top: 2rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  cursor: pointer;
+}

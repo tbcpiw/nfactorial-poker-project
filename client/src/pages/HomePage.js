@@ -1,3 +1,4 @@
+//HomePage.js
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -5,6 +6,7 @@ function HomePage() {
   const navigate = useNavigate();
   const [isPrivate, setIsPrivate] = useState(false);
   const [password, setPassword] = useState('');
+  
 
   const handleCreateRoom = async () => {
     const res = await fetch('http://localhost:3001/create-room', {
@@ -48,7 +50,9 @@ function HomePage() {
 
       <button onClick={handleCreateRoom}>Create Room</button>
       <button onClick={handleJoin}>Join Room</button>
-      <button onClick={() => alert('Game guide coming soon')}>Help</button>
+      <button onClick={() => navigate('/rules')}>
+        Правила игры
+      </button>
     </div>
   );
 }
