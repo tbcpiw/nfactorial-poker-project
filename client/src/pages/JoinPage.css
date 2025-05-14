@@ -1,0 +1,73 @@
+/* client/src/pages/JoinPage.css */
+.join-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  height: 100vh;
+  background: #e6f4ea;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.join-title {
+  font-size: 36px;
+  color: #2e7d32;
+  margin-bottom: 20px;
+}
+
+.subheading {
+  font-size: 20px;
+  color: #388e3c;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.room-list {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 20px;
+}
+
+.room-item {
+  background: #a5d6a7;
+  padding: 8px 16px;
+  margin: 5px 0;
+  border-radius: 8px;
+  color: #1b5e20;
+}
+
+.input {
+  padding: 10px;
+  font-size: 16px;
+  border: 2px solid #a5d6a7;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  width: 250px;
+}
+
+.btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  border: none;
+  border-radius: 10px;
+  background: #81c784;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn:hover {
+  background: #66bb6a;
+}
+
+.btn.green {
+  background: #388e3c;
+}
+
+.status-message {
+  margin-top: 15px;
+  color: #c62828;
+  font-weight: bold;
+}
